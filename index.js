@@ -208,7 +208,6 @@ app.get('/creator-info', async (req, res) => {
 app.post('/video/direct-post', async (req, res) => {
   try {
     const access_token = await getValidAccessToken();
-    console.log('request:', req);
     const { file_path, title } = req.body;
 
     if (!file_path) {

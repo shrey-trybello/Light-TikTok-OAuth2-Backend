@@ -1,10 +1,11 @@
-# 🚀 Light weight TikTok OAuth2 Server
-
+# 🚀 Light weight TikTok OAuth2 Server 
+[CyberBlueCollarBrandon](https://linktr.ee/CyberBlueCollarBrandon)
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-A simple, secure, and production-ready TikTok OAuth2 server with PKCE support and encrypted token storage. Perfect for integrating TikTok authentication into your applications.
+A simple, secure, local TikTok OAuth2 server with PKCE support and encrypted token storage. Perfect for integrating TikTok authentication flow into your local workflow.
+I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not working and no n8n TikTok node, so this project proxy the auth and token management flow with a local endpoint. 
+(And I also hoped to proxy functionalities like direct video posting, but failed. Reason [here](https://community.n8n.io/t/http-request-node-not-sending-authorization-header-despite-selecting-connected-oauth2-credential-tiktok-api/99963/4).)
 
 ## ✨ Features
 
@@ -12,7 +13,7 @@ A simple, secure, and production-ready TikTok OAuth2 server with PKCE support an
 - 🔒 **Encrypted Token Storage** - Secure AES-256 encryption for persistent token storage
 - 📱 **TikTok API Integration** - Ready-to-use endpoints for TikTok API calls
 - 🔄 **Auto Token Refresh** - Automatic token refresh before expiration
-- 🛡️ **Security First** - Environment-based configuration and secure defaults
+- 🚀 **Expandable TikTok API Proxies** - Add your own API endpoints
 
 ## 🚀 Quick Start
 
@@ -55,7 +56,7 @@ TIKTOK_REDIRECT_URI=http://localhost:7777/auth/callback
 PORT=7777
 
 # Security (generate a strong random key)
-ENCRYPTION_KEY=your-super-secret-encryption-key-here
+ENCRYPTION_KEY=your-super-secret-token-encryption-key-here
 ```
 
 ### 4. Start the Server
@@ -86,6 +87,8 @@ Visit `http://localhost:[port]/auth/login` to start the OAuth2 flow!
 | `/auth/login` | GET | Start OAuth2 flow (redirects to TikTok) |
 | `/auth/callback` | GET | OAuth2 callback handler |
 | `/creator-info` | GET | Get TikTok creator information |
+| `/video/direct-post` | POST | Upload video directly to TikTok |
+| `/video/status` | GET | Check video upload status |
 
 ### Example API Usage
 
@@ -94,6 +97,37 @@ Visit `http://localhost:[port]/auth/login` to start the OAuth2 flow!
 const response = await fetch('http://localhost:7777/creator-info');
 const creatorData = await response.json();
 console.log(creatorData);
+```
+
+### Video Upload (Example API usage) 
+
+I added a simple example for direct video upload to TikTok using TikTok's official API. This has limitations (explained at top).
+
+
+#### Video Upload Process
+
+The video upload follows TikTok's two-step process:
+
+1. **Initialize Upload**: The server calls TikTok's initialization endpoint with video metadata
+2. **Upload File**: The video file is uploaded to TikTok's designated URL
+3. **Status Tracking**: Use the returned `publish_id` to track upload progress
+
+#### Example Workflow
+
+```bash
+# 1. Complete OAuth2 authentication
+curl http://localhost:7777/auth/login
+
+# 2. Upload a video
+curl -X POST http://localhost:7777/video/direct-post \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_path": "/home/user/videos/my_video.mp4",
+    "title": "Check out this amazing content! #fyp #viral #trending"
+  }'
+
+# 3. Check upload status (replace with actual publish_id)
+curl "http://localhost:7777/video/status?publish_id=abc123def456"
 ```
 
 ## 🔧 Configuration
@@ -117,13 +151,7 @@ The server requests these TikTok scopes:
 - `video.publish` - Video publishing permissions
 - `video.upload` - Video upload permissions
 
-## 🛡️ Security Features
 
-- **PKCE Implementation**: Prevents authorization code interception
-- **Encrypted Storage**: AES-256 encryption for token persistence
-- **Environment Variables**: Secure configuration management
-- **Token Auto-Refresh**: Automatic token renewal
-- **Error Handling**: Comprehensive error management
 
 ## 📁 Project Structure
 
