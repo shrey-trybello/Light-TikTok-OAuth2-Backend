@@ -2,16 +2,15 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18.x-green.svg)](https://nodejs.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-by: [CyberBlueCollarBrandon](https://linktr.ee/CyberBlueCollarBrandon)
+created with ❤️ by: [CyberBlueCollarBrandon](https://linktr.ee/CyberBlueCollarBrandon)
 
 A simple, secure, local TikTok OAuth2 server with PKCE support and encrypted token storage. Perfect for integrating TikTok authentication flow into your local workflow.
 I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not working and no n8n TikTok node, so this project proxy the auth and token management flow with a local endpoint. 
-(And I also hoped to proxy functionalities like direct video posting, but failed. Reason [here](https://community.n8n.io/t/http-request-node-not-sending-authorization-header-despite-selecting-connected-oauth2-credential-tiktok-api/99963/4).) and [here](https://developers.tiktok.com/doc/content-sharing-guidelines#:~:text=Not%20acceptable%3A%20A%20utility%20tool%20to%20help%20upload%20contents%20to%20the%20account(s)%20you%20or%20your%20team%20manages.%20%E2%9D%8C)
+(And I also hoped to proxy functionalities like direct video posting, but failed. Reason [here](https://community.n8n.io/t/http-request-node-not-sending-authorization-header-despite-selecting-connected-oauth2-credential-tiktok-api/99963/4) and [here](https://developers.tiktok.com/doc/content-sharing-guidelines#:~:text=Not%20acceptable%3A%20A%20utility%20tool%20to%20help%20upload%20contents%20to%20the%20account(s)%20you%20or%20your%20team%20manages.%20%E2%9D%8C))
 
 ## ✨ Features
 
-- 🔐 **PKCE Support** - Implements TikTok's required PKCE (Proof Key for Code Exchange) flow
-- 🔒 **Proxy entire Tiktok OAuth2 flow with token management** - Secure AES-256 encryption for persistent token storage
+- 🔒 **Proxy Tiktok OAuth2 flow with PKCE Support and token management** - Implements TikTok's required PKCE. Auto token refresh. Secure AES-256 encryption for persistent token storage
 - 📱 **Expandable TikTok API Integration** - Ready-to-use endpoints for TikTok API calls
 
 ## 📖 Usage
@@ -19,7 +18,7 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 ### OAuth2 Flow
 
 1. **Complete one time Authentication**: Visit `/auth/login`
-2. **Use API**: Call `/creator-info` or create your own APIs with cached tokens. 
+2. **Use API**: Call example `/creator-info` or add your own with cached tokens. 
 
 ### API Endpoints
 
