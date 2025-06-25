@@ -4,6 +4,8 @@ const axios = require('axios');
 const qs = require('querystring');
 const crypto = require('crypto');
 const SecureTokenStorage = require('./tokenStorage');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -55,6 +57,8 @@ app.get('/', (req, res) => {
       auth: '/auth/login',
       callback: '/auth/callback',
       creator_info: '/creator-info',
+      video_upload: '/video/direct-post',
+      video_status: '/video/status?publish_id=YOUR_PUBLISH_ID',
       health: '/health'
     }
   });
@@ -105,7 +109,6 @@ app.get('/auth/callback', async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       }
     });
-    //console.log('Token Response:', tokenRes.data);
     
     if (tokenRes.data.error) {
       return res.status(400).send(`Error: ${tokenRes.data.error}, Description: ${tokenRes.data.error_description}`);
@@ -126,7 +129,25 @@ app.get('/auth/callback', async (req, res) => {
     // Clear code verifier after successful token exchange
     codeVerifier = null;
 
-    res.send('Login successful. Tokens acquired. Test usage at http://localhost:${PORT}/creator-info');
+    res.send(`
+      <h1>✅ Login Successful!</h1>
+      <p>Tokens acquired and stored securely.</p>
+      <h2>Available Endpoints:</h2>
+      <ul>
+        <li><a href="/creator-info">Creator Info</a> - Get your TikTok profile info</li>
+        <li><a href="/health">Health Check</a> - Server status</li>
+      </ul>
+      <h3>API Usage:</h3>
+      <pre>
+POST /video/direct-post
+{
+  "file_path": "/path/to/video.mp4",
+  "title": "Your video title"
+}
+
+GET /video/status?publish_id=YOUR_PUBLISH_ID
+      </pre>
+    `);
   } catch (err) {
     console.error('Token exchange error:', err.response?.data || err.message);
     res.status(500).send('Token exchange failed');
@@ -180,6 +201,133 @@ app.get('/creator-info', async (req, res) => {
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).send('API call failed');
+  }
+});
+
+// 5. Simple video upload API - takes file path and title
+app.post('/video/direct-post', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    console.log('request:', req);
+    const { file_path, title } = req.body;
+
+    if (!file_path) {
+      return res.status(400).json({ error: 'file_path is required' });
+    }
+
+    if (!title) {
+      return res.status(400).json({ error: 'title is required' });
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(file_path)) {
+      return res.status(400).json({ error: 'File not found at specified path' });
+    }
+
+    // Get file stats
+    const stats = fs.statSync(file_path);
+    const fileSize = stats.size;
+    const chunkSize = (fileSize < 10 * 1024 * 1024) ? fileSize : 10 * 1024 * 1024; // 10MB chunks
+    const totalChunkCount = Math.ceil(fileSize / chunkSize);
+
+    // Step 1: Initialize video upload
+    console.log('Initializing video upload...');
+    const initResponse = await axios.post('https://open.tiktokapis.com/v2/post/publish/video/init/', {
+      post_info: {
+        title: title,
+        privacy_level: 'PUBLIC_TO_EVERYONE',
+        disable_duet: false,
+        disable_comment: false,
+        disable_stitch: false,
+        video_cover_timestamp_ms: 1000
+      },
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: fileSize,
+        chunk_size: chunkSize,
+        total_chunk_count: totalChunkCount
+      }
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    if (initResponse.data.error && initResponse.data.error.code !== 'ok') {
+      throw new Error(`TikTok API Error: ${initResponse.data.error.message}`);
+    }
+
+    const { publish_id, upload_url } = initResponse.data.data;
+    console.log('Upload initialized:', { publish_id, upload_url });
+
+    // Step 2: Upload video file to TikTok's designated URL
+    console.log('Uploading video file...');
+    const videoBuffer = fs.readFileSync(file_path);
+    
+    const uploadResponse = await axios.put(upload_url, videoBuffer, {
+      headers: {
+        'Content-Range': `bytes 0-${fileSize - 1}/${fileSize}`,
+        'Content-Type': 'video/mp4',
+        'Content-Length': fileSize
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+
+    console.log('Video upload requested. Check status at http://localhost:${PORT}/video/status?publish_id=${publish_id}');
+
+    // Return success response with publish_id
+    res.json({
+      success: true,
+      message: 'Video upload requested successfully',
+      data: {
+        publish_id: publish_id,
+        status_url: `http://localhost:${PORT}/video/status?publish_id=${publish_id}`,
+        file_info: {
+          path: file_path,
+          size: fileSize,
+          size_mb: (fileSize / 1024 / 1024).toFixed(2)
+        }
+      }
+    });
+
+  } catch (err) {
+    console.error('Video upload error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Video upload failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 6. Check video upload status using query parameters
+app.get('/video/status', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { publish_id } = req.query;
+
+    if (!publish_id) {
+      return res.status(400).json({ error: 'publish_id query parameter is required' });
+    }
+
+    const statusResponse = await axios.post('https://open.tiktokapis.com/v2/post/publish/status/fetch/', {
+      publish_id: publish_id
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(statusResponse.data);
+
+  } catch (err) {
+    console.error('Status check error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Status check failed',
+      details: err.response?.data || err.message
+    });
   }
 });
 

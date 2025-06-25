@@ -20,7 +20,8 @@
     "nodejs",
     "express",
     "encryption",
-    "token-storage"
+    "token-storage",
+    "video-upload"
   ],
   "author": "Your Name <your.email@example.com>",
   "license": "MIT",
