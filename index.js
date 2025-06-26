@@ -10,6 +10,10 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT;
 
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 // Initialize secure storage with encryption key from environment
 const tokenStorage = new SecureTokenStorage(process.env.ENCRYPTION_KEY);
 
@@ -57,6 +61,7 @@ app.get('/', (req, res) => {
       auth: '/auth/login',
       callback: '/auth/callback',
       creator_info: '/creator-info',
+      user_info: '/user/info',
       video_upload: '/video/direct-post',
       video_status: '/video/status?publish_id=YOUR_PUBLISH_ID',
       health: '/health'
@@ -135,6 +140,7 @@ app.get('/auth/callback', async (req, res) => {
       <h2>Available Endpoints:</h2>
       <ul>
         <li><a href="/creator-info">Creator Info</a> - Get your TikTok profile info</li>
+        <li><a href="/user/info?fields=open_id,union_id,avatar_url,display_name,bio_description">User Info</a> - Get your TikTok user info</li>
         <li><a href="/health">Health Check</a> - Server status</li>
       </ul>
       <h3>API Usage:</h3>
@@ -204,7 +210,36 @@ app.get('/creator-info', async (req, res) => {
   }
 });
 
-// 5. Simple video upload API - takes file path and title
+// 5. User info API - accepts fields from client and forwards to TikTok
+app.get('/user/info', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { fields } = req.query;
+
+    if (!fields) {
+      return res.status(400).json({ 
+        error: 'fields query parameter is required',
+        example: 'GET /user/info?fields=open_id,union_id,avatar_url'
+      });
+    }
+
+    const userInfoResponse = await axios.get(`https://open.tiktokapis.com/v2/user/info/?fields=${fields}`, {
+      headers: {
+        'Authorization': `Bearer ${access_token}`,
+      }
+    });
+
+    res.json(userInfoResponse.data);
+  } catch (err) {
+    console.error('User info error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'User info request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 6. Simple video upload API - takes file path and title
 app.post('/video/direct-post', async (req, res) => {
   try {
     const access_token = await getValidAccessToken();
@@ -300,7 +335,7 @@ app.post('/video/direct-post', async (req, res) => {
   }
 });
 
-// 6. Check video upload status using query parameters
+// 7. Check video upload status using query parameters
 app.get('/video/status', async (req, res) => {
   try {
     const access_token = await getValidAccessToken();
@@ -330,19 +365,8 @@ app.get('/video/status', async (req, res) => {
   }
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
-});
-
 app.listen(PORT, () => {
   console.log(`🚀 TikTok OAuth2 Server running at http://localhost:${PORT}`);
   console.log(`📖 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Perform OAuth flow: http://localhost:${PORT}/auth/login`);
-}); 
+});

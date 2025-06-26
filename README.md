@@ -11,7 +11,7 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 ## ✨ Features
 
 - 🔒 **Proxy Tiktok OAuth2 flow with PKCE Support and token management** - Implements TikTok's required PKCE. Auto token refresh. Secure AES-256 encryption for persistent token storage
-- 📱 **Expandable TikTok API Integration** - Ready-to-use endpoints for TikTok API calls
+- 📱 **Expandable TikTok API Integration** - Add you own API endpoint based on [TikTok for Developer Documentation](https://developers.tiktok.com/doc/overview)
 
 ## 📖 Usage
 
@@ -27,6 +27,7 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 | `/auth/login` | GET | One time OAuth2 flow (thru TikTok) |
 | `/auth/callback` | GET | OAuth2 callback handler |
 | `/creator-info` | GET | Get TikTok creator information |
+| `/user/info` | GET | Get user information with specified fields |
 | `/video/direct-post` | POST | Upload video directly to TikTok |
 | `/video/status` | GET | Check video upload status |
 
@@ -37,6 +38,30 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 const response = await fetch('http://localhost:7777/creator-info');
 const creatorData = await response.json();
 console.log(creatorData);
+
+// Get user info with specific fields
+const userInfoResponse = await fetch('http://localhost:7777/user/info?fields=open_id,union_id,avatar_url,display_name,bio_description');
+const userData = await userInfoResponse.json();
+console.log(userData);
+
+// Upload a video
+const uploadResponse = await fetch('http://localhost:7777/video/direct-post', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    file_path: '/path/to/video.mp4',
+    title: 'Amazing video content! #fyp #viral'
+  })
+});
+const uploadData = await uploadResponse.json();
+console.log(uploadData);
+
+// Check video upload status
+const statusResponse = await fetch('http://localhost:7777/video/status?publish_id=abc123def456');
+const statusData = await statusResponse.json();
+console.log(statusData);
 ```
 
 ### Video Upload (Example API usage) 
@@ -58,7 +83,10 @@ The video upload follows TikTok's two-step process:
 # 1. Complete OAuth2 authentication
 curl http://localhost:7777/auth/login
 
-# 2. Upload a video
+# 2. Get creator info or 
+curl -X GET http://localhost:7777/creator-info
+
+#    Upload a video
 curl -X POST http://localhost:7777/video/direct-post \
   -H "Content-Type: application/json" \
   -d '{
