@@ -365,6 +365,8 @@ app.get('/video/status', async (req, res) => {
   }
 });
 
+// add your own api endpoint here
+
 app.listen(PORT, () => {
   console.log(`🚀 TikTok OAuth2 Server running at http://localhost:${PORT}`);
   console.log(`📖 Health check: http://localhost:${PORT}/health`);
