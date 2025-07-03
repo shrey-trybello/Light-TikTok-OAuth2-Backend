@@ -62,9 +62,13 @@ app.get('/', (req, res) => {
       callback: '/auth/callback',
       creator_info: '/creator-info',
       user_info: '/user/info',
-      video_upload: '/video/direct-post',
+      video_direct_post: '/video/direct-post',
+      video_upload: '/video/upload',
       video_status: '/video/status?publish_id=YOUR_PUBLISH_ID',
-      health: '/health'
+      health: '/health',
+      shutdown: 'POST /shutdown',
+      force_shutdown: 'POST /shutdown/force',
+      nuclear_shutdown: 'POST /shutdown/nuclear'
     }
   });
 });
@@ -365,10 +369,149 @@ app.get('/video/status', async (req, res) => {
   }
 });
 
+// 8. Video upload API - proxies TikTok's content upload API with FILE_UPLOAD approach (2-step process)
+app.post('/video/upload', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { file_path } = req.body;
+
+    if (!file_path) {
+      return res.status(400).json({ error: 'file_path is required' });
+    }
+
+    // Check if file exists
+    if (!fs.existsSync(file_path)) {
+      return res.status(400).json({ error: 'File not found at specified path' });
+    }
+
+    // Get file stats
+    const stats = fs.statSync(file_path);
+    const fileSize = stats.size;
+    const chunkSize = (fileSize < 10 * 1024 * 1024) ? fileSize : 10 * 1024 * 1024; // 10MB chunks
+    const totalChunkCount = Math.ceil(fileSize / chunkSize);
+
+    console.log('Starting video upload process...');
+    console.log('File info:', { path: file_path, size: fileSize, size_mb: (fileSize / 1024 / 1024).toFixed(2) });
+
+    // Step 1: Initialize video upload
+    console.log('Step 1: Initializing video upload...');
+    const initResponse = await axios.post('https://open.tiktokapis.com/v2/post/publish/inbox/video/init/', {
+      source_info: {
+        source: 'FILE_UPLOAD',
+        video_size: fileSize,
+        chunk_size: chunkSize,
+        total_chunk_count: totalChunkCount
+      }
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    if (initResponse.data.error && initResponse.data.error.code !== 'ok') {
+      throw new Error(`TikTok API Error: ${initResponse.data.error.message}`);
+    }
+
+    const { publish_id, upload_url } = initResponse.data.data;
+    console.log('Upload initialized:', { publish_id, upload_url });
+
+    // Step 2: Upload video file to TikTok's designated URL
+    console.log('Step 2: Uploading video file...');
+    console.log('Upload URL:', upload_url);
+    console.log('File size:', fileSize, 'bytes');
+    console.log('Content-Range:', `bytes 0-${fileSize - 1}/${fileSize}`);
+    console.log('Content-Length:', fileSize);
+    
+    const videoBuffer = fs.readFileSync(file_path);
+    console.log('Video buffer loaded, size:', videoBuffer.length, 'bytes');
+    
+    const uploadHeaders = {
+      'Content-Range': `bytes 0-${fileSize - 1}/${fileSize}`,
+      'Content-Type': 'video/mp4',
+      'Content-Length': fileSize
+    };
+    console.log('Upload headers:', uploadHeaders);
+    
+    const uploadResponse = await axios.put(upload_url, videoBuffer, {
+      headers: uploadHeaders,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity
+    });
+
+    console.log('Upload response status:', uploadResponse.status);
+    console.log('Upload response headers:', uploadResponse.headers);
+    console.log('Upload response data:', uploadResponse.data);
+    console.log('Video uploaded to inbox successfully');
+
+    // Return success response with publish_id
+    res.json({
+      success: true,
+      message: 'Video uploaded to TikTok inbox successfully. User must complete editing flow in TikTok app.',
+      data: {
+        publish_id: publish_id,
+        file_info: {
+          path: file_path,
+          size: fileSize,
+          size_mb: (fileSize / 1024 / 1024).toFixed(2)
+        },
+        note: 'Video is now in TikTok inbox. User must click on inbox notifications to continue the editing flow in TikTok and complete the post.'
+      }
+    });
+
+  } catch (err) {
+    console.error('Video upload error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Video upload failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 9. Shutdown endpoint - gracefully shut down the server
+app.post('/shutdown', (req, res) => {
+  console.log('🛑 Shutdown request received...');
+  
+  // Send immediate response to client
+  res.json({
+    success: true,
+    message: 'Server shutdown initiated',
+    timestamp: new Date().toISOString()
+  });
+
+  // Gracefully shut down the server after a short delay
+  setTimeout(() => {
+    console.log('🔄 Shutting down server...');
+    
+    // Try to kill the parent process (nodemon, pm2, etc.) if possible
+    const parentPid = process.ppid;
+    if (parentPid && parentPid !== 1) {
+      try {
+        console.log(`🔄 Attempting to kill parent process (PID: ${parentPid})...`);
+        process.kill(parentPid, 'SIGTERM');
+        
+        // Give parent process a moment to shut down gracefully
+        setTimeout(() => {
+          console.log('🔄 Exiting current process...');
+          process.exit(0);
+        }, 2000);
+      } catch (error) {
+        console.log('⚠️ Could not kill parent process, exiting current process only...');
+        process.exit(0);
+      }
+    } else {
+      console.log('🔄 Exiting current process...');
+      process.exit(0);
+    }
+  }, 1000); // 1 second delay to ensure response is sent
+});
+
+
 // add your own api endpoint here
 
 app.listen(PORT, () => {
   console.log(`🚀 TikTok OAuth2 Server running at http://localhost:${PORT}`);
   console.log(`📖 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Perform OAuth flow: http://localhost:${PORT}/auth/login`);
+  console.log(`🛑 Shutdown: POST http://localhost:${PORT}/shutdown`);
 });

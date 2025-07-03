@@ -5,8 +5,7 @@
 created with ❤️ by: [CyberBlueCollarBrandon](https://linktr.ee/CyberBlueCollarBrandon)
 
 A simple, secure, local TikTok OAuth2 server with PKCE support and encrypted token storage. Perfect for integrating TikTok authentication flow into your local workflow.
-I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not working and no n8n TikTok node, so this project proxy the auth and token management flow with a local endpoint. 
-(And I also hoped to proxy functionalities like direct video posting, but failed. Reason [here](https://community.n8n.io/t/http-request-node-not-sending-authorization-header-despite-selecting-connected-oauth2-credential-tiktok-api/99963/4) and [here](https://developers.tiktok.com/doc/content-sharing-guidelines#:~:text=Not%20acceptable%3A%20A%20utility%20tool%20to%20help%20upload%20contents%20to%20the%20account(s)%20you%20or%20your%20team%20manages.%20%E2%9D%8C))
+I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not working and no n8n TikTok node. This project proxy the auth and token management flow locally. 
 
 ## ✨ Features
 
@@ -15,10 +14,9 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 
 ## 📖 Usage
 
-### OAuth2 Flow
-
-1. **Complete one time Authentication**: Visit `/auth/login`
-2. **Use API**: Call example `/creator-info` or add your own with cached tokens. 
+1. **Complete one-time Authentication (OAuth2 Flow)**: Visit `/auth/login`
+2. **Use API**: Call `/video/upload` to upload your video. 
+3. **Expand**: Making your own API calls using cached tokens. 
 
 ### API Endpoints
 
@@ -29,7 +27,44 @@ I created this mostly to workaround the issue of n8n TikTok OAuth2 flow not work
 | `/creator-info` | GET | Get TikTok creator information |
 | `/user/info` | GET | Get user information with specified fields |
 | `/video/direct-post` | POST | Upload video directly to TikTok |
+| `/video/upload` | POST | Upload video to TikTok inbox for user edit |
 | `/video/status` | GET | Check video upload status |
+| `/shutdown` | POST | Gracefully shutdown server |
+| `/health` | GET | Server health check |
+
+
+### Video Upload
+
+#### Example Workflow
+
+```bash
+# One-time OAuth2 authentication
+curl http://localhost:7777/auth/login
+
+# Then you can get creator info with: 
+curl -X GET http://localhost:7777/creator-info
+
+#  Or upload a video with:
+curl -X POST http://localhost:7777/video/upload \
+  -H "Content-Type: application/json" \
+  -d '{
+    "file_path": "/home/user/videos/my_video.mp4",
+  }'
+
+# and check upload status at (replace with actual publish_id):
+curl "http://localhost:7777/video/status?publish_id=abc123def456"
+```
+
+#### Behind The Hood
+
+This backend implements video upload function following TikTok's two-step process:
+
+1. **Initialize Upload**: The server calls TikTok's initialization endpoint with video metadata
+2. **Upload File**: The video file is uploaded to TikTok's designated URL
+3. **Status Tracking**: Use the returned `publish_id` to track upload progress
+
+(Video upload works fine by direct video posting only supports private posting. Reason [here](https://community.n8n.io/t/http-request-node-not-sending-authorization-header-despite-selecting-connected-oauth2-credential-tiktok-api/99963/4) and [here](https://developers.tiktok.com/doc/content-sharing-guidelines#:~:text=Not%20acceptable%3A%20A%20utility%20tool%20to%20help%20upload%20contents%20to%20the%20account(s)%20you%20or%20your%20team%20manages.%20%E2%9D%8C))
+
 
 ### Example API Usage
 
@@ -45,14 +80,13 @@ const userData = await userInfoResponse.json();
 console.log(userData);
 
 // Upload a video
-const uploadResponse = await fetch('http://localhost:7777/video/direct-post', {
+const uploadResponse = await fetch('http://localhost:7777/video/upload', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({
     file_path: '/path/to/video.mp4',
-    title: 'Amazing video content! #fyp #viral'
   })
 });
 const uploadData = await uploadResponse.json();
@@ -64,39 +98,6 @@ const statusData = await statusResponse.json();
 console.log(statusData);
 ```
 
-### Video Upload (Example API usage) 
-
-I added a simple example for direct video upload to TikTok using TikTok's official API. This has limitations (explained at top).
-
-
-#### Video Upload Process
-
-The video upload follows TikTok's two-step process:
-
-1. **Initialize Upload**: The server calls TikTok's initialization endpoint with video metadata
-2. **Upload File**: The video file is uploaded to TikTok's designated URL
-3. **Status Tracking**: Use the returned `publish_id` to track upload progress
-
-#### Example Workflow
-
-```bash
-# 1. Complete OAuth2 authentication
-curl http://localhost:7777/auth/login
-
-# 2. Get creator info or 
-curl -X GET http://localhost:7777/creator-info
-
-#    Upload a video
-curl -X POST http://localhost:7777/video/direct-post \
-  -H "Content-Type: application/json" \
-  -d '{
-    "file_path": "/home/user/videos/my_video.mp4",
-    "title": "Check out this amazing content! #fyp #viral #trending"
-  }'
-
-# 3. Check upload status (replace with actual publish_id)
-curl "http://localhost:7777/video/status?publish_id=abc123def456"
-```
 
 
 ## 🚀 Quick Start
@@ -111,31 +112,24 @@ npm install
 
 ### 2. Configure TikTok App
 
-1. Go to [TikTok for Developers](https://developers.tiktok.com/)
-2. Create a new app or use existing one
-3. Add redirect URI: `http://localhost:[port]/auth/callback`
-4. Copy your **Client Key** and **Client Secret**
+Get your **Client Key** and **Client Secret** by setup at [TikTok for Developers](https://developers.tiktok.com/) 
+
 
 ### 3. Setup Environment
 
 ```bash
 cp env.example .env
 ```
+Then edit `.env` with your credentials:
 
-Edit `.env` with your credentials:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TIKTOK_CLIENT_KEY` | ✅ | Your TikTok app client key |
+| `TIKTOK_CLIENT_SECRET` | ✅ | Your TikTok app client secret |
+| `TIKTOK_REDIRECT_URI` | ✅ | OAuth2 redirect URI. Where TikTok will send redirect info (eg. http://localhost:7777/auth/callback) |
+| `PORT` | ❌ | Server port (default: 7777) |
+| `ENCRYPTION_KEY` | ❌ | Encryption key for token storage |
 
-```env
-# TikTok OAuth2 Configuration
-TIKTOK_CLIENT_KEY=your_tiktok_client_key_here
-TIKTOK_CLIENT_SECRET=your_tiktok_client_secret_here
-TIKTOK_REDIRECT_URI=http://localhost:7777/auth/callback
-
-# Server Configuration
-PORT=7777
-
-# Security (generate a strong random key)
-ENCRYPTION_KEY=your-super-secret-token-encryption-key-here
-```
 
 ### 4. Start the Server
 
@@ -150,17 +144,22 @@ npm start
 Visit `http://localhost:[port]/auth/login` to start the OAuth2 flow!
 
 
+### Server Management
+
+#### Shutdown Endpoints
+
+```bash
+# Support graceful shutdown thru API (for easy integration in n8n workflow)
+curl -X POST http://localhost:7777/shutdown
+
+# Health check
+curl http://localhost:7777/health
+```
+
+The shutdown endpoint attempts to gracefully terminate the server and any parent processes (like nodemon). It sends a success response before initiating shutdown.
+
+
 ## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TIKTOK_CLIENT_KEY` | ✅ | Your TikTok app client key |
-| `TIKTOK_CLIENT_SECRET` | ✅ | Your TikTok app client secret |
-| `TIKTOK_REDIRECT_URI` | ✅ | OAuth2 redirect URI |
-| `PORT` | ❌ | Server port (default: 7777) |
-| `ENCRYPTION_KEY` | ❌ | Encryption key for token storage |
 
 ### Scopes
 
