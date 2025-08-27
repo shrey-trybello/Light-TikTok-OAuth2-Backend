@@ -439,35 +439,6 @@ app.post('/video/upload', async (req, res) => {
       'Content-Length': fileSize
     };
     console.log('Upload headers:', uploadHeaders);
-    // TikTok Shop Analytics Endpoints for Video Analytics Board
-
-// 1. Get video performance data (views, likes, comments)
-app.get('/shop/video-performance', async (req, res) => {
-  try {
-    const access_token = await getValidAccessToken();
-    const { start_date, end_date, page = 1, page_size = 20 } = req.query;
-
-    const videoPerformance = await axios.post('https://open.tiktokapis.com/v2/shop/video/performance/', {
-      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      end_date: end_date || new Date().toISOString().split('T')[0],
-      page,
-      page_size
-    }, {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        'Content-Type': 'application/json; charset=UTF-8',
-      }
-    });
-
-    res.json(videoPerformance.data);
-  } catch (err) {
-    console.error('Video performance error:', err.response?.data || err.message);
-    res.status(500).json({
-      error: 'Video performance request failed',
-      details: err.response?.data || err.message
-    });
-  }
-});
 
 // 2. Get affiliate creator orders (sales data)
 app.get('/affiliate/creator-orders', async (req, res) => {
