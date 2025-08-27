@@ -439,7 +439,215 @@ app.post('/video/upload', async (req, res) => {
       'Content-Length': fileSize
     };
     console.log('Upload headers:', uploadHeaders);
-    // add your own api endpoint here
+    // TikTok Shop Analytics Endpoints for Video Analytics Board
+
+// 1. Get video performance data (views, likes, comments)
+app.get('/shop/video-performance', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { start_date, end_date, page = 1, page_size = 20 } = req.query;
+
+    const videoPerformance = await axios.post('https://open.tiktokapis.com/v2/shop/video/performance/', {
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0],
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(videoPerformance.data);
+  } catch (err) {
+    console.error('Video performance error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Video performance request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 2. Get affiliate creator orders (sales data)
+app.get('/affiliate/creator-orders', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { creator_id, start_date, end_date, page = 1, page_size = 20 } = req.query;
+
+    const creatorOrders = await axios.post('https://open.tiktokapis.com/v2/affiliate/creator/orders/', {
+      creator_id,
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0],
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(creatorOrders.data);
+  } catch (err) {
+    console.error('Creator orders error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Creator orders request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 3. Get affiliate seller analytics (GMV, commissions)
+app.get('/affiliate/seller-analytics', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { start_date, end_date, page = 1, page_size = 20 } = req.query;
+
+    const sellerAnalytics = await axios.post('https://open.tiktokapis.com/v2/affiliate/seller/analytics/', {
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0],
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(sellerAnalytics.data);
+  } catch (err) {
+    console.error('Seller analytics error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Seller analytics request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 4. Get videos tagged with specific products
+app.get('/product/videos', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { product_id, start_date, end_date, page = 1, page_size = 20 } = req.query;
+
+    if (!product_id) {
+      return res.status(400).json({ error: 'product_id query parameter is required' });
+    }
+
+    const productVideos = await axios.post('https://open.tiktokapis.com/v2/shop/product/videos/', {
+      product_id,
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0],
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(productVideos.data);
+  } catch (err) {
+    console.error('Product videos error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Product videos request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 5. Get creator content performance
+app.get('/creator/content', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { creator_id, start_date, end_date, page = 1, page_size = 20 } = req.query;
+
+    if (!creator_id) {
+      return res.status(400).json({ error: 'creator_id query parameter is required' });
+    }
+
+    const creatorContent = await axios.post('https://open.tiktokapis.com/v2/affiliate/creator/content/', {
+      creator_id,
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0],
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(creatorContent.data);
+  } catch (err) {
+    console.error('Creator content error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Creator content request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 6. Get product list (your products)
+app.get('/product/list', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { page = 1, page_size = 50 } = req.query;
+
+    const productList = await axios.post('https://open.tiktokapis.com/v2/shop/product/list/', {
+      page,
+      page_size
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(productList.data);
+  } catch (err) {
+    console.error('Product list error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Product list request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
+
+// 7. Get shop product performance metrics
+app.get('/shop/product-performance', async (req, res) => {
+  try {
+    const access_token = await getValidAccessToken();
+    const { product_id, start_date, end_date } = req.query;
+
+    if (!product_id) {
+      return res.status(400).json({ error: 'product_id query parameter is required' });
+    }
+
+    const productPerformance = await axios.post('https://open.tiktokapis.com/v2/shop/product/performance/', {
+      product_id,
+      start_date: start_date || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      end_date: end_date || new Date().toISOString().split('T')[0]
+    }, {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      }
+    });
+
+    res.json(productPerformance.data);
+  } catch (err) {
+    console.error('Product performance error:', err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Product performance request failed',
+      details: err.response?.data || err.message
+    });
+  }
+});
     const uploadResponse = await axios.put(upload_url, videoBuffer, {
       headers: uploadHeaders,
       maxContentLength: Infinity,
