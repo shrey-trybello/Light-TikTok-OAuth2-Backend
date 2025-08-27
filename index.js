@@ -58,18 +58,25 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     status: 'running',
     endpoints: {
-      auth: '/auth/login',
-      callback: '/auth/callback',
-      creator_info: '/creator-info',
-      user_info: '/user/info',
-      video_direct_post: '/video/direct-post',
-      video_upload: '/video/upload',
-      video_status: '/video/status?publish_id=YOUR_PUBLISH_ID',
-      health: '/health',
-      shutdown: 'POST /shutdown',
-      force_shutdown: 'POST /shutdown/force',
-      nuclear_shutdown: 'POST /shutdown/nuclear'
-    }
+  auth: '/auth/login',
+  callback: '/auth/callback',
+  creator_info: '/creator-info',
+  user_info: '/user/info',
+  video_direct_post: '/video/direct-post',
+  video_upload: '/video/upload',
+  video_status: '/video/status?publish_id=YOUR_PUBLISH_ID',
+  health: '/health',
+  shutdown: 'POST /shutdown',
+  force_shutdown: 'POST /shutdown/force',
+  nuclear_shutdown: 'POST /shutdown/nuclear',
+  shop_video_performance: '/shop/video-performance',
+  affiliate_creator_orders: '/affiliate/creator-orders',
+  affiliate_seller_analytics: '/affiliate/seller-analytics',
+  product_videos: '/product/videos',
+  creator_content: '/creator/content',
+  product_list: '/product/list',
+  shop_product_performance: '/shop/product-performance'
+}
   });
 });
 
@@ -83,7 +90,7 @@ app.get('/auth/login', (req, res) => {
     client_key: process.env.TIKTOK_CLIENT_KEY,
     redirect_uri: process.env.TIKTOK_REDIRECT_URI,
     response_type: 'code',
-    scope: 'user.info.basic,user.info.profile,user.info.stats,video.publish,video.upload',
+    scope: 'user.info.basic,user.info.profile,user.info.stats,video.publish,video.upload,shop.partner.analytics,affiliate.seller',
     state: 'secureRandomState123', // optional
     code_challenge: pkce.challenge,
     code_challenge_method: 'S256'
@@ -432,7 +439,7 @@ app.post('/video/upload', async (req, res) => {
       'Content-Length': fileSize
     };
     console.log('Upload headers:', uploadHeaders);
-    
+    // add your own api endpoint here
     const uploadResponse = await axios.put(upload_url, videoBuffer, {
       headers: uploadHeaders,
       maxContentLength: Infinity,
